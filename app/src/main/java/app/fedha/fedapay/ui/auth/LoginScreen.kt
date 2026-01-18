@@ -1,5 +1,6 @@
 package app.fedha.fedapay.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import app.fedha.fedapay.R
 import app.fedha.fedapay.ui.theme.*
 
 @Composable
@@ -54,7 +57,11 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(60.dp))
 
         // Logo
-        Text("💰", fontSize = 64.sp)
+        Image(
+            painter = painterResource(id = R.drawable.fedha_logo),
+            contentDescription = "Fedha Logo",
+            modifier = Modifier.size(100.dp)
+        )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             "FedaPay",
