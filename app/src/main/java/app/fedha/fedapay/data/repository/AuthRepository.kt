@@ -5,10 +5,12 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import app.fedha.fedapay.data.api.FedaPayApi
 import app.fedha.fedapay.data.models.*
+import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,6 +92,22 @@ class AuthRepository @Inject constructor(
             } else {
                 Result.failure(Exception(response.message ?: "Login failed"))
             }
+        } catch (e: HttpException) {
+            e.printStackTrace()
+            val errorMessage = try {
+                val errorBody = e.response()?.errorBody()?.string()
+                val errorResponse = Gson().fromJson(errorBody, LoginResponse::class.java)
+                errorResponse?.message ?: "Invalid credentials"
+            } catch (_: Exception) {
+                when (e.code()) {
+                    401 -> "Invalid username or password"
+                    403 -> "Account is not active"
+                    404 -> "Service not found"
+                    500 -> "Server error. Please try again later."
+                    else -> "Login failed (Error ${e.code()})"
+                }
+            }
+            Result.failure(Exception(errorMessage))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(Exception("Connection error: ${e.message}"))
@@ -108,6 +126,21 @@ class AuthRepository @Inject constructor(
             } else {
                 Result.failure(Exception(response.message ?: "Registration failed"))
             }
+        } catch (e: HttpException) {
+            e.printStackTrace()
+            val errorMessage = try {
+                val errorBody = e.response()?.errorBody()?.string()
+                val errorResponse = Gson().fromJson(errorBody, RegisterResponse::class.java)
+                errorResponse?.message ?: "Registration failed"
+            } catch (_: Exception) {
+                when (e.code()) {
+                    400 -> "Invalid registration data"
+                    409 -> "Account already exists"
+                    500 -> "Server error. Please try again later."
+                    else -> "Registration failed (Error ${e.code()})"
+                }
+            }
+            Result.failure(Exception(errorMessage))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(Exception("Connection error: ${e.message}"))

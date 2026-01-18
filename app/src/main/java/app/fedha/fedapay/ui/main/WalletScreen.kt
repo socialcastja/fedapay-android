@@ -3,9 +3,9 @@ package app.fedha.fedapay.ui.main
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,11 +16,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.fedha.fedapay.data.models.Transaction
-import app.fedha.fedapay.data.models.Wallet
 import app.fedha.fedapay.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,10 +32,14 @@ fun WalletScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showSendSheet by remember { mutableStateOf(false) }
     var showReceiveSheet by remember { mutableStateOf(false) }
+    var showPinSetupSheet by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
-    LaunchedEffect(Unit) {
-        viewModel.loadWallet()
+    // Show PIN setup if needed
+    LaunchedEffect(uiState.showPinSetup) {
+        if (uiState.showPinSetup && !uiState.hasPin) {
+            showPinSetupSheet = true
+        }
     }
 
     Scaffold(
@@ -84,7 +89,7 @@ fun WalletScreen(
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text("FTK Balance", fontSize = 14.sp, color = SecondaryText)
                                     Text(
-                                        String.format("%.2f", uiState.wallet?.balance ?: 0.0),
+                                        String.format("%.2f", uiState.balance),
                                         fontSize = 36.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -95,17 +100,17 @@ fun WalletScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Wallet Address
-                            uiState.wallet?.let { wallet ->
+                            if (uiState.walletAddress.isNotEmpty()) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("Address: ", fontSize = 12.sp, color = SecondaryText)
                                     Text(
-                                        wallet.walletAddress.take(12) + "..." + wallet.walletAddress.takeLast(8),
+                                        uiState.walletAddress.take(12) + "..." + uiState.walletAddress.takeLast(8),
                                         fontSize = 12.sp,
                                         color = Color.White
                                     )
                                     TextButton(
                                         onClick = {
-                                            clipboardManager.setText(AnnotatedString(wallet.walletAddress))
+                                            clipboardManager.setText(AnnotatedString(uiState.walletAddress))
                                         }
                                     ) {
                                         Text("📋", fontSize = 12.sp)
@@ -191,7 +196,7 @@ fun WalletScreen(
                             uiState.transactions.forEachIndexed { index, transaction ->
                                 TransactionDetailRow(transaction)
                                 if (index < uiState.transactions.lastIndex) {
-                                    Divider(
+                                    HorizontalDivider(
                                         modifier = Modifier.padding(horizontal = 16.dp),
                                         color = DividerColor
                                     )
@@ -206,14 +211,65 @@ fun WalletScreen(
         }
     }
 
+    // Error Dialog
+    uiState.error?.let { error ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Error") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearError() }) {
+                    Text("OK")
+                }
+            },
+            containerColor = CardBackground,
+            titleContentColor = Color.White,
+            textContentColor = SecondaryText
+        )
+    }
+
+    // Success Dialog
+    if (uiState.transferSuccess) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearTransferState() },
+            title = { Text("Success") },
+            text = { Text(uiState.transferMessage ?: "Transfer completed") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearTransferState() }) {
+                    Text("OK", color = Accent)
+                }
+            },
+            containerColor = CardBackground,
+            titleContentColor = Color.White,
+            textContentColor = SecondaryText
+        )
+    }
+
+    // PIN Setup Sheet
+    if (showPinSetupSheet) {
+        PinSetupSheet(
+            onDismiss = { showPinSetupSheet = false },
+            onSetPin = { pin, confirmPin ->
+                viewModel.setPin(pin, confirmPin)
+                showPinSetupSheet = false
+            },
+            error = uiState.pinError
+        )
+    }
+
     // Send Sheet
     if (showSendSheet) {
         SendTokensSheet(
-            balance = uiState.wallet?.balance ?: 0.0,
+            balance = uiState.balance,
+            hasPin = uiState.hasPin,
             onDismiss = { showSendSheet = false },
-            onSend = { address, amount, description ->
-                viewModel.transfer(address, amount, description)
+            onSend = { address, amount, description, pin ->
+                viewModel.transfer(address, amount, description, pin)
                 showSendSheet = false
+            },
+            onSetupPin = {
+                showSendSheet = false
+                showPinSetupSheet = true
             }
         )
     }
@@ -221,7 +277,7 @@ fun WalletScreen(
     // Receive Sheet
     if (showReceiveSheet) {
         ReceiveTokensSheet(
-            walletAddress = uiState.wallet?.walletAddress ?: "",
+            walletAddress = uiState.walletAddress,
             onDismiss = { showReceiveSheet = false }
         )
     }
@@ -256,10 +312,11 @@ private fun TransactionDetailRow(transaction: Transaction) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                transaction.description ?: transaction.type.replaceFirstChar { it.uppercase() },
+                transaction.counterparty ?: transaction.description ?: transaction.transactionType?.replaceFirstChar { it.uppercase() } ?: "Transaction",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = Color.White,
+                maxLines = 1
             )
             Text(transaction.createdAt, fontSize = 12.sp, color = SecondaryText)
         }
@@ -278,14 +335,105 @@ private fun TransactionDetailRow(transaction: Transaction) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun PinSetupSheet(
+    onDismiss: () -> Unit,
+    onSetPin: (String, String) -> Unit,
+    error: String?
+) {
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Text("Set Transaction PIN", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("Create a 4-6 digit PIN for secure transfers", fontSize = 14.sp, color = SecondaryText)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            OutlinedTextField(
+                value = pin,
+                onValueChange = { if (it.length <= 6) pin = it },
+                label = { Text("Enter PIN") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = CardBackground,
+                    unfocusedContainerColor = CardBackground,
+                    focusedBorderColor = Accent,
+                    unfocusedBorderColor = CardBackground,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = SecondaryText,
+                    unfocusedLabelColor = SecondaryText
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = confirmPin,
+                onValueChange = { if (it.length <= 6) confirmPin = it },
+                label = { Text("Confirm PIN") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = CardBackground,
+                    unfocusedContainerColor = CardBackground,
+                    focusedBorderColor = Accent,
+                    unfocusedBorderColor = CardBackground,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = SecondaryText,
+                    unfocusedLabelColor = SecondaryText
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            error?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(it, color = ErrorRed, fontSize = 14.sp)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { onSetPin(pin, confirmPin) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                shape = RoundedCornerShape(12.dp),
+                enabled = pin.length >= 4 && pin == confirmPin
+            ) {
+                Text("Set PIN", fontWeight = FontWeight.Bold, color = Background)
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun SendTokensSheet(
     balance: Double,
+    hasPin: Boolean,
     onDismiss: () -> Unit,
-    onSend: (String, Double, String?) -> Unit
+    onSend: (String, Double, String?, String) -> Unit,
+    onSetupPin: () -> Unit
 ) {
     var recipientAddress by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -301,82 +449,123 @@ private fun SendTokensSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = recipientAddress,
-                onValueChange = { recipientAddress = it },
-                label = { Text("Recipient Address or @merchantid") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = CardBackground,
-                    unfocusedContainerColor = CardBackground,
-                    focusedBorderColor = Accent,
-                    unfocusedBorderColor = CardBackground,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLabelColor = SecondaryText,
-                    unfocusedLabelColor = SecondaryText
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = amount,
-                onValueChange = { amount = it },
-                label = { Text("Amount (FTK)") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = CardBackground,
-                    unfocusedContainerColor = CardBackground,
-                    focusedBorderColor = Accent,
-                    unfocusedBorderColor = CardBackground,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLabelColor = SecondaryText,
-                    unfocusedLabelColor = SecondaryText
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description (Optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = CardBackground,
-                    unfocusedContainerColor = CardBackground,
-                    focusedBorderColor = Accent,
-                    unfocusedBorderColor = CardBackground,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLabelColor = SecondaryText,
-                    unfocusedLabelColor = SecondaryText
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    val amountValue = amount.toDoubleOrNull() ?: 0.0
-                    if (recipientAddress.isNotBlank() && amountValue > 0) {
-                        onSend(recipientAddress, amountValue, description.takeIf { it.isNotBlank() })
+            if (!hasPin) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Accent.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("PIN Required", fontWeight = FontWeight.Bold, color = Accent)
+                        Text("You need to set up a transaction PIN before sending tokens", fontSize = 14.sp, color = SecondaryText)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(onClick = onSetupPin) {
+                            Text("Set Up PIN", color = Accent, fontWeight = FontWeight.Bold)
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                shape = RoundedCornerShape(12.dp),
-                enabled = recipientAddress.isNotBlank() && (amount.toDoubleOrNull() ?: 0.0) > 0
-            ) {
-                Text("✈️ Send FTK", fontWeight = FontWeight.Bold, color = Background)
-            }
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            } else {
+                OutlinedTextField(
+                    value = recipientAddress,
+                    onValueChange = { recipientAddress = it },
+                    label = { Text("Recipient Address or @merchantid") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = CardBackground,
+                        unfocusedContainerColor = CardBackground,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = CardBackground,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = SecondaryText,
+                        unfocusedLabelColor = SecondaryText
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Amount (FTK)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = CardBackground,
+                        unfocusedContainerColor = CardBackground,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = CardBackground,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = SecondaryText,
+                        unfocusedLabelColor = SecondaryText
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = CardBackground,
+                        unfocusedContainerColor = CardBackground,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = CardBackground,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = SecondaryText,
+                        unfocusedLabelColor = SecondaryText
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { if (it.length <= 6) pin = it },
+                    label = { Text("Transaction PIN") },
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = CardBackground,
+                        unfocusedContainerColor = CardBackground,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = CardBackground,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = SecondaryText,
+                        unfocusedLabelColor = SecondaryText
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        val amountValue = amount.toDoubleOrNull() ?: 0.0
+                        if (recipientAddress.isNotBlank() && amountValue > 0 && pin.length >= 4) {
+                            onSend(recipientAddress, amountValue, description.takeIf { it.isNotBlank() }, pin)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = recipientAddress.isNotBlank() && (amount.toDoubleOrNull() ?: 0.0) > 0 && pin.length >= 4
+                ) {
+                    Text("✈️ Send FTK", fontWeight = FontWeight.Bold, color = Background)
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

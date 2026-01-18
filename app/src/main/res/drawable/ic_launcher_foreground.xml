@@ -4,12 +4,20 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Background circle -->
+    <!-- White feather icon - Fedha brand logo -->
+    <!-- Feather shape with quill and barbs -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
-    <!-- F letter -->
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,28c-2,3 -5,7 -10,12c-5,5 -12,10 -20,15c-3,2 -6,4 -9,5c2,-4 4,-8 7,-12c5,-7 11,-13 18,-18c4,-3 9,-5 14,-7c0,2 0,3 0,5z"/>
     <path
-        android:fillColor="#1A1A2E"
-        android:pathData="M40,35h25v6h-17v10h14v6h-14v18h-8z"/>
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,28c-1,5 -3,10 -6,16c-4,7 -10,14 -17,20c-5,4 -10,7 -15,9c1,-3 3,-6 5,-10c4,-6 9,-12 15,-17c5,-4 11,-8 17,-11c1,-2 1,-5 1,-7z"/>
+    <!-- Quill stem -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,73c2,-2 5,-5 8,-9c4,-5 8,-11 11,-17c3,-5 5,-10 6,-14c1,5 1,10 -1,16c-2,7 -6,14 -11,20c-3,4 -7,7 -10,9c-1,-2 -2,-3 -3,-5z"/>
+    <!-- Feather tip curve -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,78c1,-1 2,-2 3,-3c2,-2 4,-5 6,-8c1,2 2,3 2,5c-1,2 -3,4 -5,6c-2,1 -4,2 -6,2c0,-1 0,-1 0,-2z"/>
 </vector>
