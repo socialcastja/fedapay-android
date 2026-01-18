@@ -52,15 +52,49 @@ data class Transaction(
         get() = type.lowercase() == "incoming"
 }
 
+// Dashboard stats - used by UI
 data class DashboardStats(
-    @SerializedName("today_sales")
     val todaySales: Double = 0.0,
-    @SerializedName("total_transactions")
     val totalTransactions: Int = 0,
-    @SerializedName("wallet_balance")
     val walletBalance: Double = 0.0,
-    @SerializedName("pending_payments")
     val pendingPayments: Int = 0,
-    @SerializedName("recent_transactions")
     val recentTransactions: List<Transaction> = emptyList()
+)
+
+// Raw API response structure for merchant dashboard
+data class MerchantDashboardData(
+    val merchant: MerchantInfo?,
+    val wallet: WalletInfo?,
+    val stats: StatsInfo?,
+    val recentPayments: List<RecentPayment>?
+)
+
+data class MerchantInfo(
+    val name: String?,
+    val source: String?,
+    val status: String?
+)
+
+data class WalletInfo(
+    val balance: Double = 0.0,
+    val address: String?,
+    val name: String?
+)
+
+data class StatsInfo(
+    val today: PeriodStats?,
+    val week: PeriodStats?,
+    val month: PeriodStats?
+)
+
+data class PeriodStats(
+    val transactions: Int = 0,
+    val amount: Double = 0.0
+)
+
+data class RecentPayment(
+    val id: Int,
+    val amount: Double,
+    val from: String?,
+    val createdAt: String?
 )

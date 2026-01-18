@@ -66,8 +66,8 @@ class WalletRepository @Inject constructor(
     suspend fun getDashboard(): Result<DashboardStats> {
         return try {
             val response = api.getMerchantDashboard()
-            if (response.success && response.stats != null) {
-                Result.success(response.stats)
+            if (response.success) {
+                Result.success(response.toDashboardStats())
             } else {
                 Result.failure(Exception(response.message ?: "Failed to load dashboard"))
             }

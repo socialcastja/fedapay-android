@@ -78,12 +78,40 @@ data class TransferResponse(
     val newBalance: Double?
 )
 
-// Dashboard
+// Dashboard - Merchant Dashboard API response
 data class DashboardResponse(
     val success: Boolean,
     val message: String?,
-    val stats: DashboardStats?
-)
+    val merchant: MerchantInfo?,
+    val wallet: WalletInfo?,
+    val stats: StatsInfo?,
+    val recentPayments: List<RecentPayment>?
+) {
+    // Convert API response to UI-friendly DashboardStats
+    fun toDashboardStats(): DashboardStats {
+        return DashboardStats(
+            todaySales = stats?.today?.amount ?: 0.0,
+            totalTransactions = stats?.today?.transactions ?: 0,
+            walletBalance = wallet?.balance ?: 0.0,
+            pendingPayments = 0,
+            recentTransactions = recentPayments?.map { payment ->
+                Transaction(
+                    id = payment.id,
+                    hash = null,
+                    type = "incoming",
+                    transactionType = "payment",
+                    amount = payment.amount,
+                    fee = 0.0,
+                    counterparty = payment.from,
+                    description = "Payment from ${payment.from ?: "Customer"}",
+                    status = "completed",
+                    createdAt = payment.createdAt ?: "",
+                    completedAt = payment.createdAt
+                )
+            } ?: emptyList()
+        )
+    }
+}
 
 // PIN responses
 data class PinStatusResponse(
@@ -168,13 +196,29 @@ data class NfcValidationResponse(
     val paymentToken: String?
 )
 
-// Merchant responses
+// Merchant responses - API returns settings fields at top level, not nested
 data class MerchantSettingsResponse(
     val success: Boolean,
     val message: String?,
-    val settings: MerchantSettings?
+    @SerializedName("merchant_name")
+    val merchantName: String?,
+    @SerializedName("merchant_source")
+    val merchantSource: String?,
+    val email: String?,
+    val phone: String?,
+    val status: String?,
+    val logo: String?,
+    @SerializedName("accept_ftk")
+    val acceptFtk: Boolean?,
+    @SerializedName("accept_card")
+    val acceptCard: Boolean?,
+    @SerializedName("nfc_enabled")
+    val nfcEnabled: Boolean?,
+    @SerializedName("qr_enabled")
+    val qrEnabled: Boolean?
 )
 
+// Legacy MerchantSettings - for backwards compatibility
 data class MerchantSettings(
     @SerializedName("merchant_name")
     val merchantName: String?,
