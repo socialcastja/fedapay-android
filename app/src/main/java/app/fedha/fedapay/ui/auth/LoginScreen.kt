@@ -3,6 +3,7 @@ package app.fedha.fedapay.ui.auth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -60,7 +61,9 @@ fun LoginScreen(
         Image(
             painter = painterResource(id = R.drawable.fedha_logo),
             contentDescription = "Fedha Logo",
-            modifier = Modifier.size(100.dp)
+            modifier = Modifier
+                .size(100.dp)
+                .clip(RoundedCornerShape(20.dp))
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
