@@ -231,7 +231,7 @@ fun RegisterScreen(
                     if (password.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = { passwordStrength.first / 3f },
+                            progress = passwordStrength.first / 3f,
                             modifier = Modifier.fillMaxWidth().height(4.dp),
                             color = passwordStrength.third,
                             trackColor = CardBackground

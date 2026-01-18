@@ -61,7 +61,7 @@ fun POSScreen() {
             ) {
                 Text("Amount to Charge", fontSize = 14.sp, color = SecondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.LastTextBaseline) {
+                Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         amount,
                         fontSize = 56.sp,

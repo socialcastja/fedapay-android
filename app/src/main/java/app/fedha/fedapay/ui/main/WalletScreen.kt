@@ -191,7 +191,7 @@ fun WalletScreen(
                             uiState.transactions.forEachIndexed { index, transaction ->
                                 TransactionDetailRow(transaction)
                                 if (index < uiState.transactions.lastIndex) {
-                                    HorizontalDivider(
+                                    Divider(
                                         modifier = Modifier.padding(horizontal = 16.dp),
                                         color = DividerColor
                                     )

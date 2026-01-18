@@ -212,7 +212,7 @@ fun DashboardScreen(
                                     stats.recentTransactions.take(5).forEachIndexed { index, transaction ->
                                         TransactionRow(transaction)
                                         if (index < stats.recentTransactions.take(5).lastIndex) {
-                                            HorizontalDivider(color = DividerColor)
+                                            Divider(color = DividerColor)
                                         }
                                     }
                                 }
